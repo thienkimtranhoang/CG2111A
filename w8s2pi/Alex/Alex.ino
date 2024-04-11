@@ -10,6 +10,12 @@
 #define ALEX_LENGTH 25
 #define ALEX_BREADTH 16
 
+#define S0_PIN 6
+#define S1_PIN 7
+#define S2_PIN 5
+#define S3_PIN 3
+#define SENSOR_OUT_PIN 4
+
 float alexDiagonal = 0.0;
 float alexCirc = 0.0;
 volatile TDirection dir;
@@ -619,4 +625,94 @@ targetTicks=0;
 stop();
 }
 }
+}
+// return 0 if Red, return 1 if Green, return 2 if neither detected
+long currentArray[3] = {0,0,0}; 
+void setup() {
+// Setting pin modes
+DDRA |= (1 << S0_PIN) | (1 << S1_PIN) | (1 << S2_PIN) | (1 << S3_PIN); //S0 S1 S2 S3 as output
+DDRA &= ~(1 << SENSOR_OUT_PIN); // sensorOut pin as input
+
+// Setting frequency scaling to 20%
+PORTA |= (1 << S0_PIN);
+PORTA &= ~(1 << S1_PIN);
+Serial.begin(9600);
+}
+
+int coloridentify()
+{
+  //setting red filtered photodiodes to be read
+  PORTA &= ~((1 << S2_PIN) | (1 << S3_PIN));
+  currentArray[0] = pulseIn(26, LOW);
+  delay(200);
+
+  //setting green filtered photodiodes to be read
+  PORTA |= (1 << S2_PIN) | (1 << S3_PIN);
+  currentArray[1] = pulseIn(26, LOW);
+  delay(200);
+
+  //setting blue filtered photodiodes to be read
+  PORTA &= ~(1 << S2_PIN);
+  PORTA |= (1 << S3_PIN);
+  currentArray[2] = pulseIn(26, LOW);
+  delay(200);
+  //return the value of the color identified
+ return colornumber(currentArray);
+}
+// floats to hold colour array to be callibrated
+long red1Array[3] = {273,461,363};
+long green1Array[3] = {423,389,350};
+long blue1Array[3] = {472,376,260};
+long orange1Array[3] = {287,516,442};
+long purple1Array[3] = {399,443,297};
+long black1Array[3] = {600,627,516};
+long white1Array[3] = {183,187,152};
+
+long red2Array[3] = {144,352,270};
+long green2Array[3] = {364,293,299};
+long blue2Array[3] = {277,158,108};
+long orange2Array[3] = {172,388,328};
+long purple2Array[3] = {250,271,172};
+long black2Array[3] = {576,560,445};
+long white2Array[3] = {107,109,89};
+
+long red3Array[3] = {372,482,388};
+long green3Array[3] = {456,442,382};
+long g3Array[3] = {468,355, 327};
+long r3Array[3] = {305,511,358};
+long blue3Array[3] = {558,422,314};
+long orange3Array[3] = {411,616,510};
+long purple3Array[3] = {489,522,379};
+long black3Array[3] = {692,733,590};
+long white3Array[3] = {310, 330, 263} ;
+
+long *referenceColours[21] = {red1Array, red2Array, red3Array, green1Array,  green2Array,  green3Array, white1Array, black1Array, blue1Array, orange1Array, purple1Array, white2Array, black2Array, blue2Array, orange2Array, purple2Array, black3Array, white3Array, blue3Array, orange3Array, purple3Array};
+int colornumber(long colourArray[]) {
+  double min_distance = 100000;
+  short min_color = -1;
+  
+  // finds minimum Euclidean distance between measured color and reference colors
+  for (int i = 0; i < 15; i += 1) {
+    double redDifference = referenceColours[i][0] - currentArray[0];
+    double greenDifference = referenceColours[i][1] - currentArray[1];
+    double blueDifference = referenceColours[i][2] - currentArray[2];
+    double distance = sqrtf((double) redDifference * redDifference
+      + (double)greenDifference * greenDifference + (double)blueDifference * blueDifference);
+
+    if (distance < min_distance) {
+      min_distance = distance;
+      if (i < 3) //still in the field of redArray
+      {
+        min_color = 0;
+      }
+      else if (i < 6) // still in the range of greenArray
+      {
+        min_color = 1;
+      }
+      else{ //out of range of red and green arrays
+        min_color = 2;
+      }
+    }
+   }
+return min_color;
 }
